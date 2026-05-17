@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -154,6 +155,28 @@ class GoogleImportTest(unittest.TestCase):
             task_count = db.execute("SELECT COUNT(*) FROM google_tasks").fetchone()[0]
         self.assertEqual(event_count, 0)
         self.assertEqual(task_count, 0)
+
+    def test_single_item_import_routes(self) -> None:
+        app = self.app_module
+        calendar_service = FakeCalendarService()
+        tasks_service = FakeTasksService()
+        client = app.app.test_client()
+
+        with patch.object(app, "get_google_services", return_value=(calendar_service, tasks_service)):
+            event_response = client.post("/google/import/calendar/1")
+            task_response = client.post("/google/import/tasks/1")
+
+        self.assertEqual(event_response.status_code, 302)
+        self.assertEqual(task_response.status_code, 302)
+        self.assertEqual(len(calendar_service.fake_events.inserted), 1)
+        self.assertEqual(len(tasks_service.fake_tasks.inserted), 1)
+
+        with app.app.app_context():
+            db = app.get_db()
+            event = db.execute("SELECT * FROM calendar_events").fetchone()
+            task = db.execute("SELECT * FROM google_tasks").fetchone()
+            self.assertEqual(event["google_event_id"], "google-event-1")
+            self.assertEqual(task["google_task_id"], "google-task-1")
 
 
 if __name__ == "__main__":

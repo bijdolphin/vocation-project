@@ -51,11 +51,16 @@
             <div class="item-header">
               <h3>{{ event.summary or "Untitled event" }}</h3>
               {% if event.google_event_id %}
-                <span class="badge success-badge">Added to Google</span>
+                <span class="badge success-badge">✓ Added to Google</span>
+              {% elif event.import_error %}
+                <span class="badge error-badge">× Failed</span>
               {% else %}
-                <span class="badge">Local only</span>
+                <span class="badge pending-badge">Pending</span>
               {% endif %}
             </div>
+            {% if event.import_error %}
+              <p class="error compact">Google import failed: {{ event.import_error }}</p>
+            {% endif %}
             {% if event.description %}
               <p>{{ event.description }}</p>
             {% endif %}
@@ -69,9 +74,16 @@
               <dt>Confidence</dt>
               <dd>{{ event.confidence }}</dd>
             </dl>
-            <form class="item-actions" method="post" action="{{ url_for('delete_calendar_event', event_id=event.id) }}" data-confirm="Delete this saved event? This will not delete it from Google.">
-              <button class="secondary danger" type="submit">Delete</button>
-            </form>
+            <div class="item-actions actions">
+              {% if google_connected and not event.google_event_id %}
+                <form method="post" action="{{ url_for('google_import_calendar_event', event_id=event.id) }}">
+                  <button type="submit" data-loading-text="Adding event...">Add Event to Google</button>
+                </form>
+              {% endif %}
+              <form method="post" action="{{ url_for('delete_calendar_event', event_id=event.id) }}" data-confirm="Delete this saved event? This will not delete it from Google.">
+                <button class="secondary danger" type="submit">Delete</button>
+              </form>
+            </div>
           </article>
         {% endfor %}
       </div>
@@ -91,11 +103,16 @@
             <div class="item-header">
               <h3>{{ task.title or "Untitled task" }}</h3>
               {% if task.google_task_id %}
-                <span class="badge success-badge">Added to Google</span>
+                <span class="badge success-badge">✓ Added to Google</span>
+              {% elif task.import_error %}
+                <span class="badge error-badge">× Failed</span>
               {% else %}
-                <span class="badge">Local only</span>
+                <span class="badge pending-badge">Pending</span>
               {% endif %}
             </div>
+            {% if task.import_error %}
+              <p class="error compact">Google import failed: {{ task.import_error }}</p>
+            {% endif %}
             {% if task.notes %}
               <p>{{ task.notes }}</p>
             {% endif %}
@@ -109,9 +126,16 @@
               <dt>Confidence</dt>
               <dd>{{ task.confidence }}</dd>
             </dl>
-            <form class="item-actions" method="post" action="{{ url_for('delete_google_task', task_id=task.id) }}" data-confirm="Delete this saved task? This will not delete it from Google.">
-              <button class="secondary danger" type="submit">Delete</button>
-            </form>
+            <div class="item-actions actions">
+              {% if google_connected and not task.google_task_id %}
+                <form method="post" action="{{ url_for('google_import_task', task_id=task.id) }}">
+                  <button type="submit" data-loading-text="Adding task...">Add Task to Google</button>
+                </form>
+              {% endif %}
+              <form method="post" action="{{ url_for('delete_google_task', task_id=task.id) }}" data-confirm="Delete this saved task? This will not delete it from Google.">
+                <button class="secondary danger" type="submit">Delete</button>
+              </form>
+            </div>
           </article>
         {% endfor %}
       </div>

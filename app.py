@@ -116,6 +116,7 @@ def init_db() -> None:
             confidence REAL NOT NULL,
             google_event_id TEXT,
             imported_at TEXT,
+            import_error TEXT,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -129,6 +130,7 @@ def init_db() -> None:
             confidence REAL NOT NULL,
             google_task_id TEXT,
             imported_at TEXT,
+            import_error TEXT,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
         """
@@ -136,8 +138,10 @@ def init_db() -> None:
     for table_name, column_name, column_type in (
         ("calendar_events", "google_event_id", "TEXT"),
         ("calendar_events", "imported_at", "TEXT"),
+        ("calendar_events", "import_error", "TEXT"),
         ("google_tasks", "google_task_id", "TEXT"),
         ("google_tasks", "imported_at", "TEXT"),
+        ("google_tasks", "import_error", "TEXT"),
     ):
         if column_name not in {row["name"] for row in db.execute(f"PRAGMA table_info({table_name})").fetchall()}:
             db.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
@@ -434,6 +438,65 @@ def get_default_tasklist_id(tasks_service: Any) -> str:
     return tasklists[0]["id"]
 
 
+def mark_calendar_event_imported(event_id: int, google_event_id: str) -> None:
+    db = get_db()
+    db.execute(
+        "UPDATE calendar_events SET google_event_id = ?, imported_at = ?, import_error = NULL WHERE id = ?",
+        (google_event_id, datetime.now(timezone.utc).isoformat(timespec="seconds"), event_id),
+    )
+    db.commit()
+
+
+def mark_calendar_event_failed(event_id: int, error: str) -> None:
+    db = get_db()
+    db.execute("UPDATE calendar_events SET import_error = ? WHERE id = ?", (error[:500], event_id))
+    db.commit()
+
+
+def mark_google_task_imported(task_id: int, google_task_id: str) -> None:
+    db = get_db()
+    db.execute(
+        "UPDATE google_tasks SET google_task_id = ?, imported_at = ?, import_error = NULL WHERE id = ?",
+        (google_task_id, datetime.now(timezone.utc).isoformat(timespec="seconds"), task_id),
+    )
+    db.commit()
+
+
+def mark_google_task_failed(task_id: int, error: str) -> None:
+    db = get_db()
+    db.execute("UPDATE google_tasks SET import_error = ? WHERE id = ?", (error[:500], task_id))
+    db.commit()
+
+
+def import_calendar_event_to_google(calendar_service: Any, event_id: int) -> bool:
+    db = get_db()
+    event = db.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
+    if event is None or event["google_event_id"]:
+        return False
+    try:
+        created = calendar_service.events().insert(calendarId="primary", body=google_event_body(event)).execute()
+    except Exception as exc:
+        mark_calendar_event_failed(event_id, str(exc))
+        raise
+    mark_calendar_event_imported(event_id, created.get("id", ""))
+    return True
+
+
+def import_google_task_to_google(tasks_service: Any, task_id: int) -> bool:
+    db = get_db()
+    task = db.execute("SELECT * FROM google_tasks WHERE id = ?", (task_id,)).fetchone()
+    if task is None or task["google_task_id"]:
+        return False
+    try:
+        tasklist_id = get_default_tasklist_id(tasks_service)
+        created = tasks_service.tasks().insert(tasklist=tasklist_id, body=google_task_body(task)).execute()
+    except Exception as exc:
+        mark_google_task_failed(task_id, str(exc))
+        raise
+    mark_google_task_imported(task_id, created.get("id", ""))
+    return True
+
+
 def import_saved_items_to_google(calendar_service: Any, tasks_service: Any) -> dict[str, int]:
     db = get_db()
     events = db.execute(
@@ -442,28 +505,17 @@ def import_saved_items_to_google(calendar_service: Any, tasks_service: Any) -> d
     tasks = db.execute(
         "SELECT * FROM google_tasks WHERE google_task_id IS NULL ORDER BY created_at ASC, id ASC"
     ).fetchall()
-    imported_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     imported_events = 0
     for event in events:
-        created = calendar_service.events().insert(calendarId="primary", body=google_event_body(event)).execute()
-        db.execute(
-            "UPDATE calendar_events SET google_event_id = ?, imported_at = ? WHERE id = ?",
-            (created.get("id", ""), imported_at, event["id"]),
-        )
-        imported_events += 1
+        if import_calendar_event_to_google(calendar_service, event["id"]):
+            imported_events += 1
 
-    tasklist_id = get_default_tasklist_id(tasks_service) if tasks else ""
     imported_tasks = 0
     for task in tasks:
-        created = tasks_service.tasks().insert(tasklist=tasklist_id, body=google_task_body(task)).execute()
-        db.execute(
-            "UPDATE google_tasks SET google_task_id = ?, imported_at = ? WHERE id = ?",
-            (created.get("id", ""), imported_at, task["id"]),
-        )
-        imported_tasks += 1
+        if import_google_task_to_google(tasks_service, task["id"]):
+            imported_tasks += 1
 
-    db.commit()
     return {"calendar_events": imported_events, "google_tasks": imported_tasks}
 
 
@@ -683,6 +735,38 @@ def google_import():
             ),
         )
     )
+
+
+@app.post("/google/import/calendar/<int:event_id>")
+def google_import_calendar_event(event_id: int):
+    services = get_google_services()
+    if services is None:
+        return redirect(url_for("items", google_error="Connect Google before importing."))
+
+    calendar_service, _ = services
+    try:
+        imported = import_calendar_event_to_google(calendar_service, event_id)
+    except Exception as exc:
+        return redirect(url_for("items", google_error=f"Calendar event import failed: {exc}"))
+
+    message = "Calendar event added to Google." if imported else "Calendar event was already added or no longer exists."
+    return redirect(url_for("items", google_message=message))
+
+
+@app.post("/google/import/tasks/<int:task_id>")
+def google_import_task(task_id: int):
+    services = get_google_services()
+    if services is None:
+        return redirect(url_for("items", google_error="Connect Google before importing."))
+
+    _, tasks_service = services
+    try:
+        imported = import_google_task_to_google(tasks_service, task_id)
+    except Exception as exc:
+        return redirect(url_for("items", google_error=f"Task import failed: {exc}"))
+
+    message = "Task added to Google." if imported else "Task was already added or no longer exists."
+    return redirect(url_for("items", google_message=message))
 
 
 @app.get("/export/calendar.ics")
