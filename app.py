@@ -357,12 +357,14 @@ def create_google_flow() -> Flow:
             client_config,
             scopes=GOOGLE_SCOPES,
             redirect_uri=redirect_uri,
+            autogenerate_code_verifier=False,
         )
     if GOOGLE_CREDENTIALS_FILE.exists():
         return Flow.from_client_secrets_file(
             str(GOOGLE_CREDENTIALS_FILE),
             scopes=GOOGLE_SCOPES,
             redirect_uri=redirect_uri,
+            autogenerate_code_verifier=False,
         )
     raise FileNotFoundError("Missing Google OAuth config. Set GOOGLE_CLIENT_CONFIG or add credentials.json.")
 
