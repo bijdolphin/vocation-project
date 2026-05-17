@@ -72,5 +72,18 @@
       <a href="{{ url_for('items') }}">Saved Items</a>
     </nav>
     {% block content %}{% endblock %}
+    <script>
+      document.querySelectorAll("form").forEach((form) => {
+        form.addEventListener("submit", () => {
+          const button = form.querySelector("button[type='submit']");
+          if (!button) {
+            return;
+          }
+          button.disabled = true;
+          button.dataset.originalText = button.textContent;
+          button.textContent = "Working...";
+        });
+      });
+    </script>
   </body>
 </html>
