@@ -4,14 +4,21 @@
   <section class="hero">
     <div class="page-header">
       <div>
-        <h1>Saved Items</h1>
-        <p class="muted">{{ events|length }} calendar event{{ "" if events|length == 1 else "s" }} and {{ tasks|length }} task{{ "" if tasks|length == 1 else "s" }} saved locally.</p>
+        <h1>{% if show_completed %}All Saved Items{% else %}Pending Items{% endif %}</h1>
+        <p class="muted">{{ events|length }} calendar event{{ "" if events|length == 1 else "s" }} and {{ tasks|length }} task{{ "" if tasks|length == 1 else "s" }} shown.</p>
       </div>
-      {% if events or tasks %}
-        <form method="post" action="{{ url_for('clear_saved_items') }}" data-confirm="Clear all saved items? This will not delete anything already added to Google.">
-          <button class="secondary danger" type="submit">Clear All</button>
-        </form>
-      {% endif %}
+      <div class="actions">
+        {% if show_completed %}
+          <a class="button secondary" href="{{ url_for('items') }}">Hide completed</a>
+        {% else %}
+          <a class="button secondary" href="{{ url_for('items', show_completed=1) }}">Show completed</a>
+        {% endif %}
+        {% if events or tasks %}
+          <form method="post" action="{{ url_for('clear_saved_items') }}" data-confirm="Clear all saved items? This will not delete anything already added to Google.">
+            <button class="secondary danger" type="submit">Clear All</button>
+          </form>
+        {% endif %}
+      </div>
     </div>
   </section>
 
@@ -26,7 +33,7 @@
     <div>
       <h2>Google Calendar & Tasks</h2>
       {% if google_connected %}
-        <p class="muted">Connected. New imports only send local items that have not already been added.</p>
+        <p class="muted">Connected. Items disappear from the pending list after they are added to Google.</p>
       {% else %}
         <p class="muted">Connect your Google account once, then add saved events and tasks directly.</p>
       {% endif %}
@@ -88,7 +95,7 @@
         {% endfor %}
       </div>
     {% else %}
-      <p class="empty-state">No saved calendar events yet.</p>
+      <p class="empty-state">{% if show_completed %}No saved calendar events yet.{% else %}No pending calendar events.{% endif %}</p>
     {% endif %}
   </section>
 
@@ -140,7 +147,7 @@
         {% endfor %}
       </div>
     {% else %}
-      <p class="empty-state">No saved tasks yet.</p>
+      <p class="empty-state">{% if show_completed %}No saved tasks yet.{% else %}No pending tasks.{% endif %}</p>
     {% endif %}
   </section>
 {% endblock %}

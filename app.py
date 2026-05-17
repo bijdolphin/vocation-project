@@ -673,13 +673,31 @@ def clear_saved_items():
 @app.get("/items")
 def items():
     db = get_db()
-    events = db.execute("SELECT * FROM calendar_events ORDER BY created_at DESC, id DESC").fetchall()
-    tasks = db.execute("SELECT * FROM google_tasks ORDER BY created_at DESC, id DESC").fetchall()
+    show_completed = request.args.get("show_completed") == "1"
+    if show_completed:
+        events = db.execute("SELECT * FROM calendar_events ORDER BY created_at DESC, id DESC").fetchall()
+        tasks = db.execute("SELECT * FROM google_tasks ORDER BY created_at DESC, id DESC").fetchall()
+    else:
+        events = db.execute(
+            """
+            SELECT * FROM calendar_events
+            WHERE google_event_id IS NULL
+            ORDER BY created_at DESC, id DESC
+            """
+        ).fetchall()
+        tasks = db.execute(
+            """
+            SELECT * FROM google_tasks
+            WHERE google_task_id IS NULL
+            ORDER BY created_at DESC, id DESC
+            """
+        ).fetchall()
     google_connected = load_google_credentials() is not None
     return render_template(
         "items.html",
         events=events,
         tasks=tasks,
+        show_completed=show_completed,
         google_connected=google_connected,
         google_message=request.args.get("google_message"),
         google_error=request.args.get("google_error"),

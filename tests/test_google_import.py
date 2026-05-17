@@ -178,6 +178,30 @@ class GoogleImportTest(unittest.TestCase):
             self.assertEqual(event["google_event_id"], "google-event-1")
             self.assertEqual(task["google_task_id"], "google-task-1")
 
+    def test_items_page_hides_completed_by_default(self) -> None:
+        app = self.app_module
+        client = app.app.test_client()
+
+        with app.app.app_context():
+            db = app.get_db()
+            db.execute("UPDATE calendar_events SET google_event_id = 'google-event-1'")
+            db.execute("UPDATE google_tasks SET google_task_id = 'google-task-1'")
+            db.commit()
+
+        response = client.get("/items")
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("No pending calendar events.", body)
+        self.assertIn("No pending tasks.", body)
+        self.assertNotIn("Project meeting", body)
+        self.assertNotIn("Submit report", body)
+
+        response = client.get("/items?show_completed=1")
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Project meeting", body)
+        self.assertIn("Submit report", body)
+
 
 if __name__ == "__main__":
     unittest.main()
