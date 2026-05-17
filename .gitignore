@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+.conda-env/
+.conda-pkgs/
+vendor/
+tasks.db
+key.md
+credentials.json
+google_token.json
+deploy-git-dir/
+deploy-git-dir-probe/

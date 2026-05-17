@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>AI Message-to-Task</h1>
+  <form method="post" action="{{ url_for('extract') }}">
+    <label for="message">Paste a chat message, email, course notice, or meeting note</label>
+    <textarea id="message" name="message" required></textarea>
+    <p>
+      <button type="submit">Extract Tasks</button>
+    </p>
+  </form>
+{% endblock %}

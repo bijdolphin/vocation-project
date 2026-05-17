@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Review Extracted Items</h1>
+
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% endif %}
+
+  <h2>Source Message</h2>
+  <pre>{{ message }}</pre>
+
+  <h2>Calendar Events</h2>
+  {% if calendar_events %}
+    {% for event in calendar_events %}
+      <section class="item">
+        <dl>
+          <dt>Summary</dt>
+          <dd>{{ event.summary }}</dd>
+          <dt>Description</dt>
+          <dd>{{ event.description }}</dd>
+          <dt>Start</dt>
+          <dd>{{ event.start.dateTime }} ({{ event.start.timeZone }})</dd>
+          <dt>End</dt>
+          <dd>{{ event.end.dateTime }} ({{ event.end.timeZone }})</dd>
+          <dt>Confidence</dt>
+          <dd>{{ event.extendedProperties.private.confidence }}</dd>
+        </dl>
+      </section>
+    {% endfor %}
+  {% else %}
+    <p>No calendar events found.</p>
+  {% endif %}
+
+  <h2>Google Tasks</h2>
+  {% if google_tasks %}
+    {% for task in google_tasks %}
+      <section class="item">
+        <dl>
+          <dt>Title</dt>
+          <dd>{{ task.title }}</dd>
+          <dt>Notes</dt>
+          <dd>{{ task.notes }}</dd>
+          <dt>Status</dt>
+          <dd>{{ task.status }}</dd>
+          <dt>Due</dt>
+          <dd>{{ task.due or "No due date inferred" }}</dd>
+          <dt>Confidence</dt>
+          <dd>{{ task.confidence }}</dd>
+        </dl>
+      </section>
+    {% endfor %}
+  {% else %}
+    <p>No tasks found.</p>
+  {% endif %}
+
+  <h2>Raw JSON</h2>
+  <pre>{{ payload }}</pre>
+
+  <form method="post" action="{{ url_for('confirm') }}">
+    <input type="hidden" name="payload" value="{{ payload }}">
+    <button type="submit" {% if error %}disabled{% endif %}>Confirm and Save</button>
+    <a class="button" href="{{ url_for('index') }}">Cancel</a>
+  </form>
+{% endblock %}

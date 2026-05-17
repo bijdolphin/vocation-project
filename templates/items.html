@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Saved Items</h1>
+
+  {% if google_message %}
+    <p class="success">{{ google_message }}</p>
+  {% endif %}
+  {% if google_error %}
+    <p class="error">{{ google_error }}</p>
+  {% endif %}
+
+  <section class="item">
+    <h2>Google Calendar & Tasks</h2>
+    {% if google_connected %}
+      <form method="post" action="{{ url_for('google_import') }}">
+        <button type="submit">Add Saved Items to Google</button>
+      </form>
+    {% else %}
+      <a class="button" href="{{ url_for('google_connect') }}">Connect Google Calendar & Tasks</a>
+    {% endif %}
+  </section>
+
+  <h2>Calendar Events</h2>
+  {% if events %}
+    {% for event in events %}
+      <section class="item">
+        <h3>{{ event.summary }}</h3>
+        <p>{{ event.description }}</p>
+        <dl>
+          <dt>When</dt>
+          <dd>{{ event.start_datetime }} to {{ event.end_datetime }} ({{ event.timezone }})</dd>
+          <dt>Status</dt>
+          <dd>{{ event.status }}</dd>
+          <dt>Source</dt>
+          <dd>{{ event.source_text }}</dd>
+          <dt>Confidence</dt>
+          <dd>{{ event.confidence }}</dd>
+        </dl>
+      </section>
+    {% endfor %}
+  {% else %}
+    <p>No saved calendar events yet.</p>
+  {% endif %}
+
+  <h2>Google Tasks</h2>
+  {% if tasks %}
+    {% for task in tasks %}
+      <section class="item">
+        <h3>{{ task.title }}</h3>
+        <p>{{ task.notes }}</p>
+        <dl>
+          <dt>Status</dt>
+          <dd>{{ task.status }}</dd>
+          <dt>Due</dt>
+          <dd>{{ task.due or "No due date" }}</dd>
+          <dt>Source</dt>
+          <dd>{{ task.source_text }}</dd>
+          <dt>Confidence</dt>
+          <dd>{{ task.confidence }}</dd>
+        </dl>
+      </section>
+    {% endfor %}
+  {% else %}
+    <p>No saved tasks yet.</p>
+  {% endif %}
+{% endblock %}
