@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <div class="page-header">
-    <div>
-      <h1>AI Message-to-Task</h1>
-      <p class="muted">Extract calendar events and tasks, review them, then add them to Google Calendar or Google Tasks.</p>
-    </div>
-  </div>
-  <form method="post" action="{{ url_for('extract') }}">
-    <label for="message">Paste a chat message, email, course notice, or meeting note</label>
+  <section class="hero">
+    <h1>Turn messages into Google-ready plans.</h1>
+    <p class="muted">Paste a message, review the extracted events and tasks, then add them to Google Calendar or Google Tasks.</p>
+  </section>
+
+  <form class="item" method="post" action="{{ url_for('extract') }}">
+    <label for="message">Message</label>
     <textarea id="message" name="message" required></textarea>
-    <p>
+    <div class="actions">
       <button type="submit" data-loading-text="Extracting with AI...">Extract Tasks</button>
-    </p>
+      <span class="muted">Example: “Meeting tomorrow at 3pm and submit report Friday.”</span>
+    </div>
   </form>
 {% endblock %}

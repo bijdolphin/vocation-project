@@ -1,17 +1,19 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <div class="page-header">
-    <div>
-      <h1>Saved Items</h1>
-      <p class="muted">{{ events|length }} calendar event{{ "" if events|length == 1 else "s" }} and {{ tasks|length }} task{{ "" if tasks|length == 1 else "s" }} saved locally.</p>
+  <section class="hero">
+    <div class="page-header">
+      <div>
+        <h1>Saved Items</h1>
+        <p class="muted">{{ events|length }} calendar event{{ "" if events|length == 1 else "s" }} and {{ tasks|length }} task{{ "" if tasks|length == 1 else "s" }} saved locally.</p>
+      </div>
+      {% if events or tasks %}
+        <form method="post" action="{{ url_for('clear_saved_items') }}" data-confirm="Clear all saved items? This will not delete anything already added to Google.">
+          <button class="secondary danger" type="submit">Clear All</button>
+        </form>
+      {% endif %}
     </div>
-    {% if events or tasks %}
-      <form method="post" action="{{ url_for('clear_saved_items') }}" data-confirm="Clear all saved items? This will not delete anything already added to Google.">
-        <button class="secondary danger" type="submit">Clear All</button>
-      </form>
-    {% endif %}
-  </div>
+  </section>
 
   {% if google_message %}
     <p class="success">{{ google_message }}</p>
@@ -24,7 +26,7 @@
     <div>
       <h2>Google Calendar & Tasks</h2>
       {% if google_connected %}
-        <p class="muted">Google is connected. New imports only send items that have not already been imported.</p>
+        <p class="muted">Connected. New imports only send local items that have not already been added.</p>
       {% else %}
         <p class="muted">Connect your Google account once, then add saved events and tasks directly.</p>
       {% endif %}
@@ -67,7 +69,7 @@
               <dt>Confidence</dt>
               <dd>{{ event.confidence }}</dd>
             </dl>
-            <form method="post" action="{{ url_for('delete_calendar_event', event_id=event.id) }}" data-confirm="Delete this saved event? This will not delete it from Google.">
+            <form class="item-actions" method="post" action="{{ url_for('delete_calendar_event', event_id=event.id) }}" data-confirm="Delete this saved event? This will not delete it from Google.">
               <button class="secondary danger" type="submit">Delete</button>
             </form>
           </article>
@@ -107,7 +109,7 @@
               <dt>Confidence</dt>
               <dd>{{ task.confidence }}</dd>
             </dl>
-            <form method="post" action="{{ url_for('delete_google_task', task_id=task.id) }}" data-confirm="Delete this saved task? This will not delete it from Google.">
+            <form class="item-actions" method="post" action="{{ url_for('delete_google_task', task_id=task.id) }}" data-confirm="Delete this saved task? This will not delete it from Google.">
               <button class="secondary danger" type="submit">Delete</button>
             </form>
           </article>
