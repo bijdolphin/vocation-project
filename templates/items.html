@@ -1,7 +1,17 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <h1>Saved Items</h1>
+  <div class="page-header">
+    <div>
+      <h1>Saved Items</h1>
+      <p class="muted">{{ events|length }} calendar event{{ "" if events|length == 1 else "s" }} and {{ tasks|length }} task{{ "" if tasks|length == 1 else "s" }} saved locally.</p>
+    </div>
+    {% if events or tasks %}
+      <form method="post" action="{{ url_for('clear_saved_items') }}" data-confirm="Clear all saved items? This will not delete anything already added to Google.">
+        <button class="secondary danger" type="submit">Clear All</button>
+      </form>
+    {% endif %}
+  </div>
 
   {% if google_message %}
     <p class="success">{{ google_message }}</p>
@@ -10,58 +20,101 @@
     <p class="error">{{ google_error }}</p>
   {% endif %}
 
-  <section class="item">
-    <h2>Google Calendar & Tasks</h2>
+  <section class="panel">
+    <div>
+      <h2>Google Calendar & Tasks</h2>
+      {% if google_connected %}
+        <p class="muted">Google is connected. New imports only send items that have not already been imported.</p>
+      {% else %}
+        <p class="muted">Connect your Google account once, then add saved events and tasks directly.</p>
+      {% endif %}
+    </div>
     {% if google_connected %}
       <form method="post" action="{{ url_for('google_import') }}">
-        <button type="submit">Add Saved Items to Google</button>
+        <button type="submit" data-loading-text="Adding to Google...">Add New Items to Google</button>
       </form>
     {% else %}
       <a class="button" href="{{ url_for('google_connect') }}">Connect Google Calendar & Tasks</a>
     {% endif %}
   </section>
 
-  <h2>Calendar Events</h2>
-  {% if events %}
-    {% for event in events %}
-      <section class="item">
-        <h3>{{ event.summary }}</h3>
-        <p>{{ event.description }}</p>
-        <dl>
-          <dt>When</dt>
-          <dd>{{ event.start_datetime }} to {{ event.end_datetime }} ({{ event.timezone }})</dd>
-          <dt>Status</dt>
-          <dd>{{ event.status }}</dd>
-          <dt>Source</dt>
-          <dd>{{ event.source_text }}</dd>
-          <dt>Confidence</dt>
-          <dd>{{ event.confidence }}</dd>
-        </dl>
-      </section>
-    {% endfor %}
-  {% else %}
-    <p>No saved calendar events yet.</p>
-  {% endif %}
+  <section>
+    <div class="section-heading">
+      <h2>Calendar Events</h2>
+    </div>
+    {% if events %}
+      <div class="item-list">
+        {% for event in events %}
+          <article class="item">
+            <div class="item-header">
+              <h3>{{ event.summary or "Untitled event" }}</h3>
+              {% if event.google_event_id %}
+                <span class="badge success-badge">Added to Google</span>
+              {% else %}
+                <span class="badge">Local only</span>
+              {% endif %}
+            </div>
+            {% if event.description %}
+              <p>{{ event.description }}</p>
+            {% endif %}
+            <dl>
+              <dt>When</dt>
+              <dd>{{ event.start_datetime }} to {{ event.end_datetime }} ({{ event.timezone }})</dd>
+              <dt>Location</dt>
+              <dd>{{ event.location or "No location" }}</dd>
+              <dt>Source</dt>
+              <dd>{{ event.source_text }}</dd>
+              <dt>Confidence</dt>
+              <dd>{{ event.confidence }}</dd>
+            </dl>
+            <form method="post" action="{{ url_for('delete_calendar_event', event_id=event.id) }}" data-confirm="Delete this saved event? This will not delete it from Google.">
+              <button class="secondary danger" type="submit">Delete</button>
+            </form>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">No saved calendar events yet.</p>
+    {% endif %}
+  </section>
 
-  <h2>Google Tasks</h2>
-  {% if tasks %}
-    {% for task in tasks %}
-      <section class="item">
-        <h3>{{ task.title }}</h3>
-        <p>{{ task.notes }}</p>
-        <dl>
-          <dt>Status</dt>
-          <dd>{{ task.status }}</dd>
-          <dt>Due</dt>
-          <dd>{{ task.due or "No due date" }}</dd>
-          <dt>Source</dt>
-          <dd>{{ task.source_text }}</dd>
-          <dt>Confidence</dt>
-          <dd>{{ task.confidence }}</dd>
-        </dl>
-      </section>
-    {% endfor %}
-  {% else %}
-    <p>No saved tasks yet.</p>
-  {% endif %}
+  <section>
+    <div class="section-heading">
+      <h2>Google Tasks</h2>
+    </div>
+    {% if tasks %}
+      <div class="item-list">
+        {% for task in tasks %}
+          <article class="item">
+            <div class="item-header">
+              <h3>{{ task.title or "Untitled task" }}</h3>
+              {% if task.google_task_id %}
+                <span class="badge success-badge">Added to Google</span>
+              {% else %}
+                <span class="badge">Local only</span>
+              {% endif %}
+            </div>
+            {% if task.notes %}
+              <p>{{ task.notes }}</p>
+            {% endif %}
+            <dl>
+              <dt>Status</dt>
+              <dd>{{ task.status }}</dd>
+              <dt>Due</dt>
+              <dd>{{ task.due or "No due date" }}</dd>
+              <dt>Source</dt>
+              <dd>{{ task.source_text }}</dd>
+              <dt>Confidence</dt>
+              <dd>{{ task.confidence }}</dd>
+            </dl>
+            <form method="post" action="{{ url_for('delete_google_task', task_id=task.id) }}" data-confirm="Delete this saved task? This will not delete it from Google.">
+              <button class="secondary danger" type="submit">Delete</button>
+            </form>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">No saved tasks yet.</p>
+    {% endif %}
+  </section>
 {% endblock %}

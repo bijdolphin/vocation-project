@@ -24,7 +24,7 @@ class FakeCalendarEvents:
 
     def insert(self, calendarId: str, body: dict) -> ExecuteRecorder:
         self.inserted.append({"calendarId": calendarId, "body": body})
-        return ExecuteRecorder()
+        return ExecuteRecorder({"id": "google-event-1"})
 
 
 class FakeCalendarService:
@@ -46,7 +46,7 @@ class FakeTasks:
 
     def insert(self, tasklist: str, body: dict) -> ExecuteRecorder:
         self.inserted.append({"tasklist": tasklist, "body": body})
-        return ExecuteRecorder()
+        return ExecuteRecorder({"id": "google-task-1"})
 
 
 class FakeTasksService:
@@ -127,6 +127,33 @@ class GoogleImportTest(unittest.TestCase):
         self.assertEqual(calendar_service.fake_events.inserted[0]["body"]["summary"], "Project meeting")
         self.assertEqual(tasks_service.fake_tasks.inserted[0]["tasklist"], "default-list")
         self.assertEqual(tasks_service.fake_tasks.inserted[0]["body"]["title"], "Submit report")
+
+        with app.app.app_context():
+            db = app.get_db()
+            event = db.execute("SELECT * FROM calendar_events").fetchone()
+            task = db.execute("SELECT * FROM google_tasks").fetchone()
+            self.assertEqual(event["google_event_id"], "google-event-1")
+            self.assertEqual(task["google_task_id"], "google-task-1")
+
+            second_counts = app.import_saved_items_to_google(calendar_service, tasks_service)
+            self.assertEqual(second_counts, {"calendar_events": 0, "google_tasks": 0})
+
+    def test_deletes_saved_items(self) -> None:
+        app = self.app_module
+        client = app.app.test_client()
+
+        response = client.post("/items/calendar/1/delete")
+        self.assertEqual(response.status_code, 302)
+
+        response = client.post("/items/tasks/1/delete")
+        self.assertEqual(response.status_code, 302)
+
+        with app.app.app_context():
+            db = app.get_db()
+            event_count = db.execute("SELECT COUNT(*) FROM calendar_events").fetchone()[0]
+            task_count = db.execute("SELECT COUNT(*) FROM google_tasks").fetchone()[0]
+        self.assertEqual(event_count, 0)
+        self.assertEqual(task_count, 0)
 
 
 if __name__ == "__main__":

@@ -114,6 +114,8 @@ def init_db() -> None:
             status TEXT NOT NULL,
             source_text TEXT NOT NULL,
             confidence REAL NOT NULL,
+            google_event_id TEXT,
+            imported_at TEXT,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -125,10 +127,20 @@ def init_db() -> None:
             due TEXT,
             source_text TEXT NOT NULL,
             confidence REAL NOT NULL,
+            google_task_id TEXT,
+            imported_at TEXT,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
         """
     )
+    for table_name, column_name, column_type in (
+        ("calendar_events", "google_event_id", "TEXT"),
+        ("calendar_events", "imported_at", "TEXT"),
+        ("google_tasks", "google_task_id", "TEXT"),
+        ("google_tasks", "imported_at", "TEXT"),
+    ):
+        if column_name not in {row["name"] for row in db.execute(f"PRAGMA table_info({table_name})").fetchall()}:
+            db.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
     db.commit()
 
 
@@ -424,20 +436,34 @@ def get_default_tasklist_id(tasks_service: Any) -> str:
 
 def import_saved_items_to_google(calendar_service: Any, tasks_service: Any) -> dict[str, int]:
     db = get_db()
-    events = db.execute("SELECT * FROM calendar_events ORDER BY start_datetime ASC, id ASC").fetchall()
-    tasks = db.execute("SELECT * FROM google_tasks ORDER BY created_at ASC, id ASC").fetchall()
+    events = db.execute(
+        "SELECT * FROM calendar_events WHERE google_event_id IS NULL ORDER BY start_datetime ASC, id ASC"
+    ).fetchall()
+    tasks = db.execute(
+        "SELECT * FROM google_tasks WHERE google_task_id IS NULL ORDER BY created_at ASC, id ASC"
+    ).fetchall()
+    imported_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     imported_events = 0
     for event in events:
-        calendar_service.events().insert(calendarId="primary", body=google_event_body(event)).execute()
+        created = calendar_service.events().insert(calendarId="primary", body=google_event_body(event)).execute()
+        db.execute(
+            "UPDATE calendar_events SET google_event_id = ?, imported_at = ? WHERE id = ?",
+            (created.get("id", ""), imported_at, event["id"]),
+        )
         imported_events += 1
 
     tasklist_id = get_default_tasklist_id(tasks_service) if tasks else ""
     imported_tasks = 0
     for task in tasks:
-        tasks_service.tasks().insert(tasklist=tasklist_id, body=google_task_body(task)).execute()
+        created = tasks_service.tasks().insert(tasklist=tasklist_id, body=google_task_body(task)).execute()
+        db.execute(
+            "UPDATE google_tasks SET google_task_id = ?, imported_at = ? WHERE id = ?",
+            (created.get("id", ""), imported_at, task["id"]),
+        )
         imported_tasks += 1
 
+    db.commit()
     return {"calendar_events": imported_events, "google_tasks": imported_tasks}
 
 
@@ -565,6 +591,31 @@ def confirm():
 
     db.commit()
     return redirect(url_for("items"))
+
+
+@app.post("/items/calendar/<int:event_id>/delete")
+def delete_calendar_event(event_id: int):
+    db = get_db()
+    db.execute("DELETE FROM calendar_events WHERE id = ?", (event_id,))
+    db.commit()
+    return redirect(url_for("items", google_message="Deleted saved calendar event."))
+
+
+@app.post("/items/tasks/<int:task_id>/delete")
+def delete_google_task(task_id: int):
+    db = get_db()
+    db.execute("DELETE FROM google_tasks WHERE id = ?", (task_id,))
+    db.commit()
+    return redirect(url_for("items", google_message="Deleted saved task."))
+
+
+@app.post("/items/clear")
+def clear_saved_items():
+    db = get_db()
+    db.execute("DELETE FROM calendar_events")
+    db.execute("DELETE FROM google_tasks")
+    db.commit()
+    return redirect(url_for("items", google_message="Cleared saved items."))
 
 
 @app.get("/items")

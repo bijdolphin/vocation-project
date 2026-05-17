@@ -2,6 +2,7 @@
 
 {% block content %}
   <h1>Review Extracted Items</h1>
+  <p class="muted">Check the extraction before saving it locally. You can add saved items to Google from the Saved Items page.</p>
 
   {% if error %}
     <p class="error">{{ error }}</p>
@@ -54,12 +55,14 @@
     <p>No tasks found.</p>
   {% endif %}
 
-  <h2>Raw JSON</h2>
-  <pre>{{ payload }}</pre>
+  <details>
+    <summary>Raw JSON</summary>
+    <pre>{{ payload }}</pre>
+  </details>
 
   <form method="post" action="{{ url_for('confirm') }}">
     <input type="hidden" name="payload" value="{{ payload }}">
-    <button type="submit" {% if error %}disabled{% endif %}>Confirm and Save</button>
+    <button type="submit" data-loading-text="Saving..." {% if error %}disabled{% endif %}>Save Items</button>
     <a class="button" href="{{ url_for('index') }}">Cancel</a>
   </form>
 {% endblock %}

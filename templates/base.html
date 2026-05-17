@@ -5,39 +5,107 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>AI Message-to-Task</title>
     <style>
+      :root {
+        color-scheme: light;
+        --border: #d8dee4;
+        --danger: #b42318;
+        --muted: #59636e;
+        --panel: #f6f8fa;
+        --text: #1f2328;
+      }
+      * {
+        box-sizing: border-box;
+      }
       body {
+        color: var(--text);
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         line-height: 1.5;
-        margin: 2rem auto;
-        max-width: 960px;
-        padding: 0 1rem;
+        margin: 0 auto;
+        max-width: 1040px;
+        padding: 1.25rem;
       }
       nav {
+        align-items: center;
+        border-bottom: 1px solid var(--border);
         display: flex;
         gap: 1rem;
-        margin-bottom: 2rem;
+        margin-bottom: 1.75rem;
+        padding-bottom: 0.85rem;
+      }
+      a {
+        color: #0969da;
+      }
+      h1, h2, h3, p {
+        margin-top: 0;
       }
       textarea {
+        border: 1px solid var(--border);
+        border-radius: 6px;
         box-sizing: border-box;
+        font: inherit;
         min-height: 180px;
+        padding: 0.75rem;
         width: 100%;
       }
       button, .button {
+        background: #1f883d;
+        border: 1px solid #1f883d;
+        border-radius: 6px;
+        color: #fff;
         cursor: pointer;
         display: inline-block;
-        padding: 0.55rem 0.8rem;
+        font: inherit;
+        font-weight: 650;
+        padding: 0.55rem 0.85rem;
+        text-decoration: none;
       }
-      .section-heading {
+      button:disabled {
+        cursor: wait;
+        opacity: 0.7;
+      }
+      .secondary {
+        background: #fff;
+        border-color: var(--border);
+        color: var(--text);
+      }
+      .danger {
+        color: var(--danger);
+      }
+      .page-header, .section-heading, .item-header, .panel {
         align-items: center;
         display: flex;
         gap: 1rem;
         justify-content: space-between;
       }
-      .item {
-        border: 1px solid #d0d7de;
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
         border-radius: 6px;
-        margin: 1rem 0;
+        margin-bottom: 1.5rem;
         padding: 1rem;
+      }
+      .item-list {
+        display: grid;
+        gap: 1rem;
+      }
+      .item {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1rem;
+      }
+      .badge {
+        background: #f6f8fa;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 0.85rem;
+        padding: 0.15rem 0.5rem;
+        white-space: nowrap;
+      }
+      .success-badge {
+        background: #dafbe1;
+        border-color: #aceebb;
+        color: #116329;
       }
       .error {
         background: #fff1f0;
@@ -53,16 +121,41 @@
         color: #237804;
         padding: 0.75rem 1rem;
       }
+      .muted, .empty-state {
+        color: var(--muted);
+      }
       pre {
-        background: #f6f8fa;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 6px;
         overflow-x: auto;
         padding: 1rem;
       }
+      dl {
+        display: grid;
+        gap: 0.35rem 1rem;
+        grid-template-columns: minmax(90px, max-content) 1fr;
+      }
       dt {
+        color: var(--muted);
         font-weight: 700;
       }
       dd {
-        margin: 0 0 0.75rem;
+        margin: 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 680px) {
+        body {
+          padding: 1rem;
+        }
+        .page-header, .section-heading, .item-header, .panel {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        dl {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -74,7 +167,12 @@
     {% block content %}{% endblock %}
     <script>
       document.querySelectorAll("form").forEach((form) => {
-        form.addEventListener("submit", () => {
+        form.addEventListener("submit", (event) => {
+          const message = form.dataset.confirm;
+          if (message && !window.confirm(message)) {
+            event.preventDefault();
+            return;
+          }
           const button = form.querySelector("button[type='submit']");
           if (!button) {
             return;

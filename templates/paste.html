@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <h1>AI Message-to-Task</h1>
+  <div class="page-header">
+    <div>
+      <h1>AI Message-to-Task</h1>
+      <p class="muted">Extract calendar events and tasks, review them, then add them to Google Calendar or Google Tasks.</p>
+    </div>
+  </div>
   <form method="post" action="{{ url_for('extract') }}">
     <label for="message">Paste a chat message, email, course notice, or meeting note</label>
     <textarea id="message" name="message" required></textarea>
