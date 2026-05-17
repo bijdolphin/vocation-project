@@ -15,7 +15,7 @@ from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
-from openai import OpenAI, OpenAIError
+from openai import APITimeoutError, OpenAI, OpenAIError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -145,12 +145,12 @@ def ensure_database() -> None:
 
 def create_ai_client() -> OpenAI:
     if AI_API_KEY and AI_BASE_URL:
-        return OpenAI(api_key=AI_API_KEY, base_url=AI_BASE_URL)
+        return OpenAI(api_key=AI_API_KEY, base_url=AI_BASE_URL, timeout=20.0)
     if AI_API_KEY:
-        return OpenAI(api_key=AI_API_KEY)
+        return OpenAI(api_key=AI_API_KEY, timeout=20.0)
     if AI_BASE_URL:
-        return OpenAI(base_url=AI_BASE_URL)
-    return OpenAI()
+        return OpenAI(base_url=AI_BASE_URL, timeout=20.0)
+    return OpenAI(timeout=20.0)
 
 
 def normalize_extracted_items(items: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
@@ -493,6 +493,9 @@ def extract():
     error = None
     try:
         extracted = extract_items_from_message(message)
+    except APITimeoutError:
+        extracted = {"calendar_events": [], "google_tasks": []}
+        error = "AI extraction timed out. Please try again."
     except OpenAIError as exc:
         extracted = {"calendar_events": [], "google_tasks": []}
         error = f"OpenAI API error: {exc}"

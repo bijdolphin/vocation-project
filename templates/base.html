@@ -81,7 +81,7 @@
           }
           button.disabled = true;
           button.dataset.originalText = button.textContent;
-          button.textContent = "Working...";
+          button.textContent = button.dataset.loadingText || "Working...";
         });
       });
     </script>
